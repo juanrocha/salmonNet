@@ -1,0 +1,17 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.png
+*.html
+*.docx
+*.pdf
+*.bbl
+*.bib
+*.tex
+*.csl
+SalmonNetworks_cache
+SalmonNetworks_files
+171006_Abstract_CompleNet_cache
+171006_Abstract_CompleNet_files
+
