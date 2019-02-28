@@ -135,7 +135,7 @@ t_tests <- map(.x = rho_list, safely(
     .f = ~ t.test(.x$rho, alternative = "greater", mu = 0, na.action = na.exclude))
 )
 
-### J180911: Note that there is some rhos that are essentially constant, therefore the 
+### J180911: Note that there is some rhos that are essentially constant, therefore the
 # t.test results in an error. For these cases, errors are reported but not p-values, and when
 # I extract p-values, errors are dismissed making the vector shorter and loosing the index position
 # of the significant p-values.
@@ -147,12 +147,12 @@ fail <- t_tests$error %>% map_lgl(is_null) %>% unlist()
 
 ## So, one can extract only the siginificant rhos by means of
 signif <-  t_tests %>%
-    transpose() %>% 
+    transpose() %>%
     map(~ .x$result[["p.value"]] ) %>%
-    map(~ .x < 0.05) 
+    map(~ .x < 0.05)
 
-rho_df <- rho_list[which(signif == TRUE)] %>% 
-    bind_rows() %>% 
+rho_df <- rho_list[which(signif == TRUE)] %>%
+    bind_rows() %>%
 
 
 
