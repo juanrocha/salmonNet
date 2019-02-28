@@ -172,5 +172,8 @@ dat <- dat %>%
 
 write_csv(dat, path = "~/Documents/Projects/Salmon_Jessica/data/clean_salmon_data_181022.csv")
 
+write_csv(countries, path =
+"~/Documents/Projects/Salmon_Jessica/data/clean_salmon_countries_181116.csv")
+
 ## clean up a bit:
 rm(dat_1, dat_2, exports, imports, files, g, new_names, partners, probs, reporters, x)
