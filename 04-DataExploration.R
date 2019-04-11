@@ -199,11 +199,14 @@ usa <- usa %>%
 # ggplot(usa, aes(Period, link)) +
 #     geom_raster(aes(fill = norm_weight))
 #
-ggplot(usa, aes(Period, norm_log_weight)) + #norm_weight
+g_usa <- ggplot(usa, aes(Period, total_netweight_tons)) + #norm_weight, norm_log_weight, 
     geom_line(aes(color = link), show.legend = FALSE) +
     geom_vline(xintercept = parse_date_time(c("2016-02", "2016-05"), orders = "Ym"), color = 'red', alpha = 0.5) +
-    facet_wrap(.~exporter_name) +
-    theme_minimal(base_size = 8)
+    facet_wrap(.~exporter_name) + 
+    labs(title = "US salmon imports", caption = "UN Comtrade Data [monthly records]") +
+    theme_minimal(base_size = 7) 
+
+ggsave(g_usa, filename = "USA_salmon.png", device = "png", width = 5, height = 5, units = "in", dpi = 600)
 
 
 ### Prepare dataset for ccm
@@ -226,9 +229,9 @@ smap_output <- s_map(as.data.frame(df_usa)[c(1,3)], E = 4)
 plot(smap_output$theta, smap_output$rho, type = "l", xlab = "Nonlinearity (theta)", ylab = "Forecast Skill (rho)")
 
 ## Convergent cross mapping:
-chl_xmap_nor <- ccm(as.data.frame(df_usa), E=1, lib_column = "152_842", target_column="579_842", lib_sizes = seq(3,29, by =2), random_libs=FALSE)
+chl_xmap_nor <- ccm(as.data.frame(df_usa), E=1, lib_column = "152_842", target_column="579_842", lib_sizes = seq(3,61, by =2), random_libs=FALSE)
 
-nor_xmap_chl <- ccm(as.data.frame(df_usa), E=1, target_column = "152_842", lib_column="579_842", lib_sizes = seq(3,29, by =2), random_libs=FALSE)
+nor_xmap_chl <- ccm(as.data.frame(df_usa), E=1, target_column = "152_842", lib_column="579_842", lib_sizes = seq(3,61, by =2), random_libs=FALSE)
 
 
 chl_xmap_nor_means <- data.frame(ccm_means(chl_xmap_nor), sd.rho = with(chl_xmap_nor, tapply(rho, lib_size, sd)))
@@ -239,12 +242,20 @@ nor_xmap_chl_means <- data.frame(ccm_means(nor_xmap_chl), sd.rho = with(nor_xmap
 df3 <- rbind(chl_xmap_nor_means, nor_xmap_chl_means) %>%
   unite(xmap, lib_column, target_column, sep = " <- ")
 
-ggplot(df3, aes(lib_size, rho, group = xmap)) +
-  geom_ribbon(aes(ymin = rho - sd.rho, ymax = rho + sd.rho, fill = xmap), alpha = 0.3) +
+df3 <- df3 %>% 
+    mutate(`Cross-mapping` = ifelse(xmap == "152_842 <- 579_842", "CHL_USA <- NOR_USA", "NOR_USA <- CHL_USA"))
+
+g_cmm <- ggplot(df3, aes(lib_size, rho, group = `Cross-mapping`)) +
+  geom_ribbon(aes(ymin = rho - sd.rho, ymax = rho + sd.rho, fill = `Cross-mapping`), alpha = 0.3) +
   geom_hline(yintercept = 0, color = "black", linetype = 2) +
-  geom_line(aes(color = xmap)) +
+  geom_line(aes(color = `Cross-mapping`)) +
   labs(x = "Library size", y = "Forecasting skill") + # expression(rho)
+  labs(title = "Convergent cross-mapping for Chile and Norway", 
+       caption = "Data Comtrade UN [monthly records] from 2010-2018") +
   theme_light(base_size=10) + theme(legend.position = "bottom")
+
+ggsave(g_cmm, filename = "CHL_USA_NOR_salmon.png", device = "png", width = 5, height = 5, units = "in", dpi = 600)
+
 
 # J181106: The results with new dataset does not reproduce the previous results with Netherlands but works with Norway :(
 
@@ -825,13 +836,13 @@ g4 <- df_nodes_attr %>%
     geom_smooth(method = 'lm', se = TRUE) +
     geom_point(
         aes(color = mean_rho_mean_in),
-        size = 3,
+        size = 4,
         show.legend = TRUE) +
-    geom_text(aes(label = iso_code), color = "white", size = 1) +
+    geom_text(aes(label = iso_code), color = "white", size = 1.5) +
     labs(x = "Log of median imported tons", y = "In-degree") +
     scale_color_gradient(low = "goldenrod", high = "red", na.value = "black") +
     guides(color = guide_colorbar(bquote(bar(rho["in"])), barwidth = 0.5)) +
-    theme_minimal(base_size = 8)
+    theme_minimal(base_size = 10)
 
 g5 <- df_nodes_attr %>%
     left_join(df_nodes, by = c("country_name" = "country")) %>%
@@ -840,20 +851,20 @@ g5 <- df_nodes_attr %>%
     ggplot(aes(log1p(median_exported_tons), out_degree )) +
     geom_smooth(method = 'lm', se = TRUE) +
     geom_point(
-        aes(color = mean_rho_mean_out), size = 3,
+        aes(color = mean_rho_mean_out), size = 4,
         show.legend = TRUE) +
-    geom_text(aes(label = iso_code), color = "white", size = 1) +
+    geom_text(aes(label = iso_code), color = "white", size =1.5) +
     labs(x = "Log of median exported tons", y = "Out-degree") +
     scale_color_gradient(low = "goldenrod", high = "red", na.value = "black") +
     guides(color = guide_colorbar(bquote(bar(rho[out])), barwidth = 0.5)) +
-    theme_minimal(base_size = 8)
+    theme_minimal(base_size = 10)
 
-quartz(width = 7, height = 7, pointsize = 6)
-layout <- matrix(1:4, ncol = 2, nrow = 2, byrow = T)
-multiplot(plotlist = list(g2,g3,g4,g5), layout = layout)
+quartz(width = 7, height = 4, pointsize = 9)
+layout <- matrix(1:2, ncol = 2, nrow = 1, byrow = T)
+multiplot(plotlist = list(g4,g5), layout = layout)
 
 getwd()
-quartz.save("salmon_analysis.pdf", type = "pdf", width = 7, height = 7, pointsize = 6 )
+quartz.save("salmon_analysis_2.pdf", type = "pdf", width = 7, height = 4, pointsize = 9 )
 
 ##### J181129: Repeat analysis with fewer commodities, there is very weird results regarding main exporters. I believe it is because I included all salmon commodities (processes, unprocessed, salmonidae), it should be only fresh, filet, smoked.
 
