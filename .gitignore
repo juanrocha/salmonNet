@@ -2,6 +2,7 @@
 .Rapp.history
 .RData
 .Ruserdata
+.DS_Store
 *.Rproj
 *.png
 *.html
