@@ -396,12 +396,13 @@ t_tests <- map(.x = rho_list, safely(
 # p_vals <- map(t_tests, function(x) x$result$p.value)
 t_tests <- transpose(t_tests)
 fail <- t_tests$error %>% map_lgl(is_null) %>% unlist()
-
+fail ## all should be true
 ind <- ind %>%
     mutate(
         rho = map_dbl(.x = rho_list, .f = ~ mean(.x$rho, na.rm = TRUE)),
         rho_t = map_dbl(.x = t_tests$result, function(x) x$estimate ),
-        p_value = map_dbl(.x = t_tests$result, function(x) x$p.value )
+        p_value = map_dbl(.x = t_tests$result, function(x) x$p.value ),
+        detection = ifelse(p_value <0.05 & rho > 0.1, TRUE, FALSE)
     )
 
 
@@ -523,13 +524,13 @@ ind <- ind %>% rename(E = bestE)
 
 
 ##### J181107: I ran out memory if I do all the job in one go. I will split the ind2 dataset and split the computation in two. Save the two objects and then filter only significant results before merging back again.
-
-ind_a <- ind %>% slice(1:(n()/2))
-ind_b <- ind %>% slice((1 + n()/2):n())
+## J190502: Not necessary in new machine, it handles the full dataset at once, takes >6hrs though
+# ind_a <- ind %>% slice(1:(n()/2))
+# ind_b <- ind %>% slice((1 + n()/2):n())
 
 #### Run it twice, one with _a and another with _b. It should take about 6hrs each.
 ## This step is unnecesary, one can do it with a dataframe as well. Also note that I was getting the same data frame in all iterations! The solution was on teh syntax of pmap. Originally I had .f = ~ ccm(...) but it's not necessary. I still get lost on how to use the ~ when passing functions to multiple objects.
-param <- rlang::as_list(ind_b)
+param <- rlang::as_list(ind)
 
 start <- Sys.time()
 ## Now rho is calculated with pmap: takes about 50'
@@ -542,14 +543,14 @@ rho_list <- pmap(
         random_libs = FALSE
     )
 
-end <- Sys.time()
+end <- Sys.time() ## It talkes 6.68 hrs in new computer to complete -- full data
 
 end - start
 
 ## Object size is 9Gb, length is ~280k dataframes!
 ## Here I saved the object that I can use to calculate the t-tests
-save(rho_list,
-    file = "~/Documents/Projects/Salmon_Jessica/data/181201_salmon_rho_list_partB.Rdata")
+# save(rho_list,
+#     file = "~/Documents/Projects/Salmon_Jessica/data/190502_salmon_rho_list_full.Rdata")
 
 # load(file = "~/Documents/Projects/Salmon_Jessica/data/181107_salmon_rho_list_partB.Rdata")
 
@@ -564,37 +565,49 @@ sum(!fail) #no errors
 
 pis <- t_tests$result %>% map(function(x) x$p.value < 0.05)
 
-save(t_tests,
-    file = "~/Documents/Projects/Salmon_Jessica/data/181201_salmon_t_tests_rho_partB.Rdata")
+# save(t_tests,
+#     file = "~/Documents/Projects/Salmon_Jessica/data/190502_salmon_t_tests_rho_full.Rdata")
 
 ## Since both rho_list and t_tests are saved on disk, here you can load them again:
 # load("~/Documents/Projects/Salmon_Jessica/data/181107_salmon_rho_list_partA.Rdata") # long rho list with ~28k dataframes
-load("~/Documents/Projects/Salmon_Jessica/data/181201_salmon_t_tests_rho_partA.Rdata") # list with ~28k t-tests
-# load("~/Documents/Projects/Salmon_Jessica/data/salmon_short_rho.Rdata")
+# load("~/Documents/Projects/Salmon_Jessica/data/181201_salmon_t_tests_rho_partA.Rdata") # list with ~28k t-tests
+# # load("~/Documents/Projects/Salmon_Jessica/data/salmon_short_rho.Rdata")
+# 
+# 
+# ## Since you broke the analysis in part A and part B, now you need to join the results together in a df.
+# ls()
+# load("~/Documents/Projects/Salmon_Jessica/data/181201_salmon_t_tests_rho_partB.Rdata")
+
+# format(object.size(t_tests), "Mb")
+# t_tests_A <- t_tests
+# # load("~/Documents/Projects/Salmon_Jessica/data/181113_salmon_t_tests_rho_partB.Rdata")
+# t_tests_B <- t_tests
+# 
+# rm(t_tests)
+# 
+# t_tests <- c(transpose(t_tests_A), transpose(t_tests_B))
+# t_tests <- transpose(t_tests)
+# 
+# identical(t_tests_A, t_tests_B)
+
+# ind$rho <- map_dbl(t_tests$result, function(x) {ifelse(is_null(x), NA, x$estimate)})
+# ind$p_value <- map_dbl(t_tests$result, function(x) {ifelse(is_null(x), NA, x$p.value)})
+# # Nonlinearity
+# ind$theta <- map_dbl(nonlinearity, function(x){
+#     (x %>% arrange(desc(rho)) %>% pull(theta))[1]}
+# )
+
+ind <- ind %>%
+  mutate(
+    rho = map_dbl(.x = rho_list, .f = ~ mean(.x$rho, na.rm = TRUE)),
+    rho_t = map_dbl(.x = t_tests$result, function(x) ifelse(is.null(x$estimate), NA, x$estimate)),
+    p_value = map_dbl(.x = t_tests$result, function(x) ifelse(is.null(x$p.value), NA, x$p.value)),
+    corr = map_dbl(.x = corr_list, function(x) max(abs(x))),
+    detection = ifelse(p_value <0.05 & rho > 0.1, TRUE, FALSE),
+    strong_detection = ifelse(p_value < 0.05 & rho > corr, TRUE, FALSE)
+  )
 
 
-## Since you broke the analysis in part A and part B, now you need to join the results together in a df.
-ls()
-load("~/Documents/Projects/Salmon_Jessica/data/181201_salmon_t_tests_rho_partB.Rdata")
-
-format(object.size(t_tests), "Mb")
-t_tests_A <- t_tests
-# load("~/Documents/Projects/Salmon_Jessica/data/181113_salmon_t_tests_rho_partB.Rdata")
-t_tests_B <- t_tests
-
-rm(t_tests)
-
-t_tests <- c(transpose(t_tests_A), transpose(t_tests_B))
-t_tests <- transpose(t_tests)
-
-identical(t_tests_A, t_tests_B)
-
-ind$rho <- map_dbl(t_tests$result, function(x) {ifelse(is_null(x), NA, x$estimate)})
-ind$p_value <- map_dbl(t_tests$result, function(x) {ifelse(is_null(x), NA, x$p.value)})
-# Nonlinearity
-ind$theta <- map_dbl(nonlinearity, function(x){
-    (x %>% arrange(desc(rho)) %>% pull(theta))[1]}
-)
 
 
 ## for comparison, I can also extract the mean rho value and the t-value as test
@@ -603,9 +616,35 @@ ind$theta <- map_dbl(nonlinearity, function(x){
 # ind$avg_rho <- t_tests$result %>% map_dbl(~.$estimate)
 
 # save(ind,
-#     file = "~/Documents/Projects/Salmon_Jessica/data/181202_salmonTrade_causal_links.Rdata")
+#     file = "~/Documents/Projects/Salmon_Jessica/data/190502_salmonTrade_causal_links.Rdata")
 
-load("~/Documents/Projects/Salmon_Jessica/data/181115_salmonTrade_causal_links.Rdata") #181202
+load("~/Documents/Projects/Salmon_Jessica/data/190502_salmonTrade_causal_links.Rdata") #181202
+
+
+## J190501: Calculate the cross-correlation matrix as well
+
+start <- Sys.time()
+corr_list <-  map2(
+  .x = ind$lib_column, .y = ind$target_column ,
+  .f = ~ ccf(x = df_dat[.x], y = df_dat[.y],
+             type = "correlation", plot = FALSE,
+             na.action = na.pass, demean = FALSE)$acf
+)
+
+end <- Sys.time() 
+
+end-start # 3mins
+
+correlation <- corr_list %>% 
+  map(., function(x) max(abs(x))) %>%
+  unlist()
+
+## reload the ind data with all rho's calculated, merge with correlations
+
+ind
+
+
+
 #### To-do
 # Filter the links that don't have predictive value.
 # Reconstruct the network and see if there is actual A-B-C connections or if it's all random.
@@ -621,13 +660,28 @@ ind <- ind %>%
 ## A->B, C->D when A == C is the case when two time series are causaly related because they share the same driver (or the same country is exporting, so governed by the dynamics of the same fish stock resources).
 ## A->B, C->D when A != C & B != D means there must be a higher order interaction, a correlation due to unobserved issues (e.g. climate), or problems
 
-ind %>% filter(p_value < 0.05, A == B | C == D) ## this should not exist!!!
+ind %>% filter(p_value < 0.05, A == B | C == D) ## this should not exist!!! 538 cases related to country 124
 
-df <- ind %>% filter(p_value < 0.05, B == D) ## 3737 links out of 324330 analyzed!
+df <- ind %>% 
+  mutate(id = seq(1:dim(ind)[1])) %>% ## this id allows me to retrieve objects in rho_list
+  filter(detection == TRUE, strong_detection == TRUE, B == D) ## 3737 links out of 324330 analyzed!
 
-ind %>% filter(p_value < 0.05, A == C) ## 9654 links
+ind %>% filter(strong_detection == TRUE, A == C) ## 9654 links out of 14092 where A==C
+ind %>% filter(strong_detection == TRUE,A != C, B != D, A != D, B != C, A != B, C != D)  ## 176964 links out of 324330 analyzed.
+
 
 ## If D == B, then there is a causal link between A <- C, the time series of A-B has information of the time series C-D.
+
+df ## now contains the strong detection links
+# so to visualize them, use the index id
+rho_list[[3232]] %>%
+  ggplot(aes(lib_size, rho)) + 
+  geom_smooth() + 
+  geom_point() +
+  geom_hline(aes(yintercept = 0), color ="red") +
+  geom_hline(aes(yintercept = df %>% filter(id == 3232) %>% pull(corr)), color = "orange") +
+  theme_minimal()
+
 
 ### load the countries data:
 countries <- read_csv(
@@ -738,8 +792,8 @@ g <- world +
 
 setwd("~/Documents/Projects/salmonNets")
 quartz(width = 7, height = 3, pointsize = 6)
-
-quartz.save("salmon_network_nodes.pdf", type = "pdf", width = 7, height = 3, pointsize = 6)
+g
+quartz.save("salmon_network_strong.pdf", type = "pdf", width = 7, height = 3, pointsize = 6)
 
 ### plot the nodes
 g <- g +
@@ -859,12 +913,12 @@ g5 <- df_nodes_attr %>%
     guides(color = guide_colorbar(bquote(bar(rho[out])), barwidth = 0.5)) +
     theme_minimal(base_size = 10)
 
-quartz(width = 7, height = 4, pointsize = 9)
-layout <- matrix(1:2, ncol = 2, nrow = 1, byrow = T)
-multiplot(plotlist = list(g4,g5), layout = layout)
+quartz(width = 7, height = 7, pointsize = 9)
+layout <- matrix(1:4, ncol = 2, nrow = 2, byrow = T)
+multiplot(plotlist = list(g2,g3,g4,g5), layout = layout)
 
 getwd()
-quartz.save("salmon_analysis_2.pdf", type = "pdf", width = 7, height = 4, pointsize = 9 )
+quartz.save("salmon_analysis_3.pdf", type = "pdf", width = 7, height = 7, pointsize = 9 )
 
 ##### J181129: Repeat analysis with fewer commodities, there is very weird results regarding main exporters. I believe it is because I included all salmon commodities (processes, unprocessed, salmonidae), it should be only fresh, filet, smoked.
 
@@ -873,8 +927,12 @@ library(networkD3)
 net <- simpleNetwork(
     Data = df_plot,
     Source = "country_C",
-    Target = "country_A"
+    Target = "country_A", 
+    zoom = TRUE
 )
+
+# save(df_plot, net,
+#     file = "~/Documents/Projects/Salmon_Jessica/data/190502_salmonTrade_network.Rdata")
 
 # sankeyNetwork(
 #     Links = df_plot,
