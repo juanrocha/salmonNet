@@ -55,7 +55,7 @@ month$clickElement()
 choices <- remDr$findElements('css', '.select2-search-choice-close')
 choices[[1]]$clickElement() # Period
 Sys.sleep(3)
-choices[[1]]$sendKeysToActiveElement(list('all', key = "enter"))
+choices[[1]]$sendKeysToElement(list(key = "delete", 'all', key = "enter"))
 
 
 choices[[4]]$clickElement() # Tradeflows

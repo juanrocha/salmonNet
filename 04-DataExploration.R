@@ -476,6 +476,9 @@ for (i in 2:dim(df_dat)[2]){
     prediction_decay[[i-1]]$link <- colnames(df_dat)[i]
 }
 
+prediction_decay %>% bind_rows() %>%
+  ggplot(aes(tp, rho)) + geom_line(alpha = 0.2, aes(group = link))
+
 ## Nonlinearity test
 nonlinearity <- list()
 for (i in 2:dim(df_dat)[2]){
@@ -674,12 +677,13 @@ ind %>% filter(strong_detection == TRUE,A != C, B != D, A != D, B != C, A != B, 
 
 df ## now contains the strong detection links
 # so to visualize them, use the index id
-rho_list[[3232]] %>%
+x <- 1441
+rho_list[[x]] %>%
   ggplot(aes(lib_size, rho)) + 
   geom_smooth() + 
   geom_point() +
   geom_hline(aes(yintercept = 0), color ="red") +
-  geom_hline(aes(yintercept = df %>% filter(id == 3232) %>% pull(corr)), color = "orange") +
+  geom_hline(aes(yintercept = df %>% filter(id == x) %>% pull(corr)), color = "orange") +
   theme_minimal()
 
 
